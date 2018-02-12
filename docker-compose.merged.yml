@@ -1,0 +1,9 @@
+services:
+  web:
+    image: nginx:1
+    ports:
+    - 80:80/tcp
+    volumes:
+    - /Volumes/MaysysData/m2i3-projects/games/nbacktrivia/src:/usr/share/nginx/html:rw
+version: '3.0'
+

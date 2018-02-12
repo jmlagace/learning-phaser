@@ -1,0 +1,187 @@
+<!doctype html> 
+<html lang="en"> 
+<head> 
+	<meta charset="UTF-8" />
+	<title>Phaser - Asteroid</title>
+    <script src="/lib/phaser.min.js"></script>
+    <style type="text/css">
+        body {
+            margin: 0;
+        }
+        canvas {
+            margin: auto;
+        }
+    </style>
+</head>
+<body>
+
+<script type="text/javascript">
+
+
+  var game = new Phaser.Game(800, 600, Phaser.CANVAS, '', { preload: preload, create: create, update: update, render: render });
+
+  function preload() {
+
+      game.load.image('bullet', 'assets/shmup-bullet.png');
+      game.load.image('ship', 'assets/thrust_ship.png');
+      game.load.image('star', 'assets/star.png');
+
+  }
+
+  var sprite;
+  var weapon;
+  var cursors;
+  var fireButton;
+  var stars;
+  var score = 0;
+  var scoreText;
+  var gameOverText;
+
+  function create() {
+    
+      centerX = game.world.width / 2;
+      centerY = game.world.height / 2;
+      
+      //  Creates 30 bullets, using the 'bullet' graphic
+      weapon = game.add.weapon(30, 'bullet');
+
+      //  The bullet will be automatically killed when it leaves the world bounds
+      weapon.bulletKillType = Phaser.Weapon.KILL_WORLD_BOUNDS;
+      weapon.bulletKillType = Phaser.Weapon.KILL_NEVER;
+      
+      
+      //  The bullet will be automatically killed when it leaves the world bounds
+      weapon.bulletKillType = Phaser.Weapon.KILL_LIFESPAN;
+
+      //  Bullets live for 2 seconds
+      weapon.bulletLifespan = 500;
+      
+      //  The speed at which the bullet is fired
+      weapon.bulletSpeed = 300;
+
+      //  Speed-up the rate of fire, allowing them to shoot 1 bullet every 60ms
+      weapon.fireRate = 100;
+
+      sprite = this.add.sprite(centerX, centerY, 'ship');
+
+      sprite.anchor.set(0.5);
+
+      game.physics.arcade.enable(sprite);
+
+      sprite.body.drag.set(70);
+      sprite.body.maxVelocity.set(200);
+
+      //  Tell the Weapon to track the 'player' Sprite
+      //  With no offsets from the position
+      //  But the 'true' argument tells the weapon to track sprite rotation
+      weapon.trackSprite(sprite, 0, 0, true);
+
+      cursors = this.input.keyboard.createCursorKeys();
+
+      fireButton = this.input.keyboard.addKey(Phaser.KeyCode.SPACEBAR);
+      
+      stars = game.add.group();
+      game.physics.arcade.enable(stars);
+      stars.enableBody = true;
+//      stars.body.immovable = true;
+
+      thirdX = game.world.width / 3;
+      thirdY = game.world.height / 3;
+      
+      for (i =0; i < 100; i++) {
+          positionX = Math.random() * game.world.width;
+          positionY = Math.random() * game.world.height;
+          
+          if (Math.abs(positionX - centerX) < 60) {
+            positionX = positionX + 60;
+          }
+          
+          if (Math.abs(positionY - centerY) < 60) {
+            positionY = positionY + 60;
+          }
+          
+          var star = stars.create(positionX, positionY, 'star');
+      }
+      
+      //  The score
+      scoreText = game.add.text(16, 16, 'score: 0', { fontSize: '32px', fill: '#ffffff' });
+      
+      gameOverText = game.add.text(0, 0, 'GAME OVER', {align: 'center', fontSize: '100px', fill: '#ffffff',  boundsAlignH: "center", boundsAlignV: "middle" });
+      gameOverText.setTextBounds(0, centerY, 800, 100);
+      gameOverText.visible = false;
+
+  }
+
+  function update() {
+
+      var hitStars = game.physics.arcade.collide(stars);
+      var hitStars = game.physics.arcade.collide(sprite, stars, killShip);
+      var hitWeapon = game.physics.arcade.collide(weapon.bullets, stars, killStar); 
+      /*if (hitStars) {
+        hitStars.kill();
+      }*/
+
+      if (cursors.up.isDown)
+      {
+          game.physics.arcade.accelerationFromRotation(sprite.rotation, 300, sprite.body.acceleration);
+      }
+      else
+      {
+          sprite.body.acceleration.set(0);
+      }
+
+      if (cursors.left.isDown)
+      {
+          sprite.body.angularVelocity = -300;
+      }
+      else if (cursors.right.isDown)
+      {
+          sprite.body.angularVelocity = 300;
+      }
+      else
+      {
+          sprite.body.angularVelocity = 0;
+      }
+
+      if (fireButton.isDown)
+      {
+          weapon.fire();
+      }
+
+      game.world.wrap(sprite, 16);
+      game.world.wrap(stars, 16);
+
+  }
+
+  function render() {
+
+      //weapon.debug();
+
+  }
+  
+  function killShip(sprite, stars)
+  {
+    updateScore(-5);
+  }
+  
+  function killStar(bullet, $star) 
+  {
+    $star.kill();
+    updateScore(10);
+  }
+  
+  function updateScore(offset)
+  {
+      score += offset;
+      if (score <= 0) {
+          sprite.kill();
+          scoreText.text = 'GAME OVER';
+          gameOverText.visible = true;
+      } else {
+          scoreText.text = 'Score: ' + score;
+      }
+  }
+</script>
+
+</body>
+</html>
