@@ -3,7 +3,8 @@
 <head> 
 	<meta charset="UTF-8" />
 	<title>Phaser - Asteroid</title>
-    <script src="//cdn.jsdelivr.net/phaser/2.6.2/phaser.min.js"></script>
+    <!--script src="//cdn.jsdelivr.net/phaser/2.6.2/phaser.min.js"></script-->
+    <script src="/lib/phaser.min.js"></script>
     <style type="text/css">
         body {
             margin: 0;
@@ -22,9 +23,12 @@
 
   function preload() {
 
-      game.load.image('bullet', 'assets/shmup-bullet.png');
-      game.load.image('ship', 'assets/thrust_ship.png');
-      game.load.image('star', 'assets/star.png');
+      game.load.image('background', 'assets/background_002.png');
+      game.load.image('bullet', 'assets/bullet_01_32x32.png');
+      game.load.image('ship', 'assets/airplane_05_48x48_000.png');
+      game.load.image('enemy', 'assets/enemy04_32x32.png');
+      game.load.image('firstaid', 'assets/star.png');
+      game.load.image('shield', 'assets/shield_000.png');
 
   }
 
@@ -32,15 +36,26 @@
   var weapon;
   var cursors;
   var fireButton;
-  var stars;
+  var weaponButton;
+  var enemys;
   var score = 0;
   var scoreText;
+  var energyLevel;
+  var energyLevelText;
   var gameOverText;
+  var gameOver;
+  var firstaids;
+  var shield;
 
   function create() {
     
+      game.world.resize(2000, 2000);
+    
       centerX = game.world.width / 2;
       centerY = game.world.height / 2;
+      
+      game.stage.backgroundColor = "#000000";
+      game.add.image(0, 0, 'background');
       
       //  Creates 30 bullets, using the 'bullet' graphic
       weapon = game.add.weapon(30, 'bullet');
@@ -54,13 +69,16 @@
       weapon.bulletKillType = Phaser.Weapon.KILL_LIFESPAN;
 
       //  Bullets live for 2 seconds
-      weapon.bulletLifespan = 500;
+      weapon.bulletLifespan = 1000;
       
       //  The speed at which the bullet is fired
-      weapon.bulletSpeed = 300;
+      weapon.bulletSpeed = 500;
 
       //  Speed-up the rate of fire, allowing them to shoot 1 bullet every 60ms
       weapon.fireRate = 100;
+      
+      //  Add a variance to the bullet angle by +- this value
+      weapon.bulletAngleVariance = 0;
 
       sprite = this.add.sprite(centerX, centerY, 'ship');
 
@@ -70,25 +88,32 @@
 
       sprite.body.drag.set(70);
       sprite.body.maxVelocity.set(200);
+      sprite.body.collideWorldBounds = true;
+      game.camera.follow(sprite);
 
       //  Tell the Weapon to track the 'player' Sprite
       //  With no offsets from the position
       //  But the 'true' argument tells the weapon to track sprite rotation
       weapon.trackSprite(sprite, 0, 0, true);
+      
+      shield = sprite.addChild(game.make.sprite(-38, -39, 'shield'));
+      shield.alpha = 0;
 
       cursors = this.input.keyboard.createCursorKeys();
 
       fireButton = this.input.keyboard.addKey(Phaser.KeyCode.SPACEBAR);
       
-      stars = game.add.group();
-      game.physics.arcade.enable(stars);
-      stars.enableBody = true;
-//      stars.body.immovable = true;
+      weaponButton = game.input.keyboard.addKey(Phaser.Keyboard.W);
+      weaponButton.onDown.add(toggleWeaponStyle);
+      
+      enemys = game.add.group();
+      game.physics.arcade.enable(enemys);
+      enemys.enableBody = true;
 
       thirdX = game.world.width / 3;
       thirdY = game.world.height / 3;
       
-      for (i =0; i < 100; i++) {
+      for (i =0; i < 600; i++) {
           positionX = Math.random() * game.world.width;
           positionY = Math.random() * game.world.height;
           
@@ -100,86 +125,162 @@
             positionY = positionY + 60;
           }
           
-          var star = stars.create(positionX, positionY, 'star');
+          var enemy = enemys.create(positionX, positionY, 'enemy');
+          enemy.body.acceleration.x = (Math.random() * 50) - 25;
+          enemy.body.acceleration.y = (Math.random() * 50) - 25;
+          enemy.body.collideWorldBounds = true;
+          enemy.body.bounce.setTo(1,1);
+      }
+      
+      firstaids = game.add.group();
+      game.physics.arcade.enable(firstaids);
+      firstaids.enableBody = true;
+      for (i = 0; i < 15; i++) {
+        positionX = Math.random() * game.world.width;
+        positionY = Math.random() * game.world.height;
+        
+        if (Math.abs(positionX - centerX) < 60) {
+          positionX = positionX + 60;
+        }
+        
+        if (Math.abs(positionY - centerY) < 60) {
+          positionY = positionY + 60;
+        }
+        var firstaid = firstaids.create(positionX, positionY, 'firstaid');
+        firstaid.body.acceleration.x = (Math.random() * 50) - 25;
+        firstaid.body.acceleration.y = (Math.random() * 50) - 25;
+        firstaid.body.collideWorldBounds = true;
+        firstaid.body.bounce.setTo(1,1);
       }
       
       //  The score
-      scoreText = game.add.text(16, 16, 'score: 0', { fontSize: '32px', fill: '#ffffff' });
+      scoreText = game.add.text(16, 16, 'Score: 0', { fontSize: '32px', fill: 'rgba(255,255,255,0.5)'  });
+      score = 0;
+      scoreText.fixedToCamera = true;
+      scoreText.cameraOffset.setTo(16, 16);
       
-      gameOverText = game.add.text(0, 0, 'GAME OVER', {align: 'center', fontSize: '100px', fill: '#ffffff',  boundsAlignH: "center", boundsAlignV: "middle" });
-      gameOverText.setTextBounds(0, centerY, 800, 100);
-      gameOverText.visible = false;
-
+      energyLevelText = game.add.text(16, 48, 'Energy: 100%', { fontSize: '32px', fill: 'rgba(255,255,255,0.5)' });
+      energyLevelText.fixedToCamera = true;
+      energyLevelText.cameraOffset.setTo(16, 48);
+      energyLevel= 100;
+      updateEnergyLevel(0);
+      
+      
+      gameOver = false;
   }
 
   function update() {
+    
+      if (shield.alpha < 1) {
+        shield.alpha += 0.1;
+      }
+    
 
-      var hitStars = game.physics.arcade.collide(stars);
-      var hitStars = game.physics.arcade.collide(sprite, stars, killShip);
-      var hitWeapon = game.physics.arcade.collide(weapon.bullets, stars, killStar); 
-      /*if (hitStars) {
-        hitStars.kill();
-      }*/
+      game.physics.arcade.collide([enemys,firstaids]);
+      game.physics.arcade.collide(enemys,firstaids);
+      game.physics.arcade.collide(sprite, enemys, killShip);
+      game.physics.arcade.collide(sprite, firstaids, touchFirstAidKit);
+      game.physics.arcade.collide(weapon.bullets, enemys, killenemy); 
+      game.physics.arcade.collide(weapon.bullets, firstaids, killFirstAidKit); 
 
-      if (cursors.up.isDown)
-      {
-          game.physics.arcade.accelerationFromRotation(sprite.rotation, 300, sprite.body.acceleration);
-      }
-      else
-      {
-          sprite.body.acceleration.set(0);
-      }
+      if (!gameOver) {
+        if (cursors.up.isDown)
+        {
+            game.physics.arcade.accelerationFromRotation(sprite.rotation, 300, sprite.body.acceleration);
+            updateEnergyLevel(-0.005);
+        }
+        else
+        {
+            sprite.body.acceleration.set(0);
+        }
 
-      if (cursors.left.isDown)
-      {
-          sprite.body.angularVelocity = -300;
-      }
-      else if (cursors.right.isDown)
-      {
-          sprite.body.angularVelocity = 300;
-      }
-      else
-      {
-          sprite.body.angularVelocity = 0;
-      }
+        if (cursors.left.isDown)
+        {
+            sprite.body.angularVelocity = -300;
+            updateEnergyLevel(-0.005);
+        }
+        else if (cursors.right.isDown)
+        {
+            sprite.body.angularVelocity = 300;
+            updateEnergyLevel(-0.005);
+        }
+        else
+        {
+            sprite.body.angularVelocity = 0;
+        }
 
-      if (fireButton.isDown)
-      {
+        if (fireButton.isDown)
+        {
+
           weapon.fire();
+          updateEnergyLevel(-0.05);
+            
+        }
+        
+        if (weaponButton.isDown) 
+        {
+          
+        }
       }
-
-      game.world.wrap(sprite, 16);
-      game.world.wrap(stars, 16);
-
   }
 
-  function render() {
-
-      //weapon.debug();
+  function render() 
+  {
+  //    weapon.debug();
+  }
+  
+  function killShip(sprite, enemys)
+  {
+    shield.alpha = 0;
+    updateEnergyLevel(-1);
+  }
+  
+  function touchFirstAidKit(sprite, kit)
+  {
+    kit.kill();
+    updateEnergyLevel(100);
+  }
+  
+  function killenemy(bullet, enemy) 
+  {
+    bullet.kill();
+    enemy.kill();
+    score += 5;
+    scoreText.text = 'Score: ' + score;
+  }
+  
+  function killFirstAidKit(bullet, kit) 
+  {
+    kit.kill();
+  }
+  
+  function updateEnergyLevel(points) 
+  {
+    energyLevel += points;
+    if (energyLevel < 0) {
+      energyLevel = 0;
+      sprite.kill();
+      gameOver = true;
+    } else if (energyLevel > 100.0) {
+      energyLevel = 100.0;
+    }
+    
+    if (gameOver) {
+        energyLevelText.text = 'GAME OVER';
+    } else {
+        energyLevelText.text = 'Energy: ' + Math.round(energyLevel,0) + '%';
+    }
 
   }
   
-  function killShip(sprite, stars)
+  function toggleWeaponStyle()
   {
-    updateScore(-5);
-  }
-  
-  function killStar(bullet, $star) 
-  {
-    $star.kill();
-    updateScore(10);
-  }
-  
-  function updateScore(offset)
-  {
-      score += offset;
-      if (score <= 0) {
-          sprite.kill();
-          scoreText.text = 'GAME OVER';
-          gameOverText.visible = true;
-      } else {
-          scoreText.text = 'Score: ' + score;
-      }
+    if (weapon.bulletAngleVariance == 0) {
+        weapon.bulletAngleVariance = 30;
+    } else {
+        weapon.bulletAngleVariance = 0;
+    }
+    
   }
 </script>
 

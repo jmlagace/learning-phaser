@@ -4,6 +4,6 @@ services:
     ports:
     - 80:80/tcp
     volumes:
-    - /Volumes/MaysysData/m2i3-projects/games/nbacktrivia/src:/usr/share/nginx/html:rw
+    - /Volumes/MaysysData/m2i3-projects/games/learningphaser/src:/usr/share/nginx/html:rw
 version: '3.0'
 
